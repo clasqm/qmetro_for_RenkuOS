@@ -175,6 +175,12 @@ source trees (§6).
 cmake_minimum_required(VERSION 3.16)
 project(qmetro VERSION 0.7.1 LANGUAGES CXX)
 
+# The runtime data folders live in a source-tree bin/, so an in-source build
+# would stage over them and `make clean` would delete real project files.
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+  message(FATAL_ERROR "Out-of-source build required: mkdir build && cd build && cmake ..")
+endif()
+
 # Haiku's qt5_devel installs the CMake config packages here; harmless elsewhere.
 if(EXISTS /boot/system/lib/cmake)
   list(APPEND CMAKE_PREFIX_PATH /boot/system/lib/cmake)
@@ -252,17 +258,41 @@ target_compile_definitions(qmetro PRIVATE
 target_link_libraries(qmetro PRIVATE
     Qt5::Widgets Qt5::Gui Qt5::Core Qt5::Network ZLIB::ZLIB)
 
+# --- runtime layout ---------------------------------------------------------
+# The executable and a staged copy of map/, locale/ and skin/ live together
+# in <build>/bin, so nothing is written into the source tree and `make clean`
+# removes the binary along with the staged data.
+set(QMETRO_RUNTIME_DIR ${CMAKE_BINARY_DIR}/bin)
+
 set_target_properties(qmetro PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin)
+    RUNTIME_OUTPUT_DIRECTORY ${QMETRO_RUNTIME_DIR})
+
+set(QMETRO_DATA_DIRS map locale skin)
+
+set(QMETRO_STAGE_COMMANDS
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${QMETRO_RUNTIME_DIR})
+foreach(data_dir ${QMETRO_DATA_DIRS})
+  list(APPEND QMETRO_STAGE_COMMANDS
+      COMMAND ${CMAKE_COMMAND} -E copy_directory
+              ${CMAKE_CURRENT_SOURCE_DIR}/bin/${data_dir}
+              ${QMETRO_RUNTIME_DIR}/${data_dir})
+endforeach()
+
+add_custom_target(stage_data ${QMETRO_STAGE_COMMANDS}
+    COMMENT "Staging map/, locale/ and skin/ beside the executable")
+add_dependencies(qmetro stage_data)
+
+set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${QMETRO_RUNTIME_DIR})
 ```
 
 Notes:
 * `src/zlib` stays on the include path because `zip/*.cpp` include `zlib.h` — but no zlib
   **sources** are compiled (the tree only carries headers); `zlib.h`/`zconf.h` already contain
   the `QT_VERSION` guard at `zconf.h:13`, and the `-lz` from `qmetro.pro` becomes `ZLIB::ZLIB`.
-* `RUNTIME_OUTPUT_DIRECTORY` reproduces `DESTDIR = bin`: the program resolves `map/`, `locale/`,
-  `skin/` relative to its own directory (`mainwindow.cpp:104`, `appPath=qApp->applicationDirPath()`),
-  so the data folders in `bin/` must stay beside the binary.
+* The runtime layout is staged, not written into the source tree — see §4.2. It replaces
+  qmake's `DESTDIR = bin`, because the program resolves `map/`, `locale/`, `skin/` relative to
+  its own directory (`mainwindow.cpp:104`, `appPath=qApp->applicationDirPath()`), so the data
+  folders must sit beside the binary wherever that is.
 * `AUTOUIC` satisfies the `#include "ui_mainwindow.h"` etc. and puts the generated headers on the
   include path automatically.
 * `AUTOMOC` needs `main.h` listed (the `Q_OBJECT` class `TApplication`) and the headers that
@@ -274,7 +304,39 @@ Notes:
 * If `find_package(Qt5 5.15 ...)` fails on the build machine, the exact component names are in
   `/boot/system/lib/cmake/Qt5*`; report the failure instead of loosening the version.
 
-### 4.2 Things to verify in the generated build, not guessed
+### 4.2 Runtime layout and `make clean`
+
+qmake's `DESTDIR = bin` dropped the executable into the **source** `bin/` next to the shipped
+`map/`, `locale/` and `skin/` data. That layout has a defect for a CMake build: the source tree
+is not a build output, so `make clean` cannot remove the binary it left there, and an in-source
+configure would stage data over the tracked files.
+
+Adopted layout:
+
+```
+build/
+  bin/
+    qmetro            <- executable (RUNTIME_OUTPUT_DIRECTORY)
+    map/ locale/ skin/  <- copies of the source data, refreshed by `stage_data`
+    cache/            <- created at runtime by the app (appPath + "cache/")
+```
+
+* `stage_data` is an `ALL`-style custom target that `qmetro` depends on, so every `make`
+  re-copies the three data folders (`cmake -E copy_directory`, a few small files). Editing
+  `bin/skin/*.zip` or dropping in `bin/map/*.pmz` is picked up on the next build without
+  touching C++ sources.
+* `ADDITIONAL_CLEAN_FILES` adds `build/bin` (CMake ≥ 3.15, we require 3.16), so
+  `make clean` removes the executable **and** the staged data. `rm -rf build` is the full reset.
+* The in-source guard (`FATAL_ERROR` when `CMAKE_SOURCE_DIR == CMAKE_BINARY_DIR`) prevents a
+  stray `cmake .` from turning the source `bin/` into the staging directory that `make clean`
+  would then wipe.
+* Consequence to be aware of: maps downloaded at runtime and settings written under
+  `build/bin/` are build-tree state and disappear on `make clean`. The tracked data in the
+  source `bin/` is never modified.
+* To run an installed-style copy, `cp build/bin/qmetro bin/` (data is already there) — that is
+  a manual step and deliberately not part of the build.
+
+### 4.3 Things to verify in the generated build, not guessed
 
 1. `rc/resource.qrc` paths are relative to `rc/` (`locale/ru.qm`, `img/*.png`, `translit_ru`) and
    all of those files exist in this tree — `rc/locale/ru.qm` and `rc/translit_ru` do.
@@ -297,9 +359,10 @@ Each phase ends with a state the maintainer can build. Do not batch phases into 
 3. Fix §2.4 (`QtWidgets` guards in `completer.h`, `mobileui.cpp`).
 4. Do **not** touch API deprecations yet — the goal is a compiling 1:1 equivalent.
 
-Acceptance: `mkdir build && cd build && cmake .. && make` completes; binary lands in `bin/`;
-`make clean` works. Expect the first run here to surface compile errors; they get fixed in the
-next commit but stay inside this phase.
+Acceptance: `mkdir build && cd build && cmake .. && make` completes; the executable and staged
+`map/ locale/ skin/` land in `build/bin/`; the program starts from there and finds its data;
+`make clean` removes the binary and the staged folders. Expect the first run here to surface
+compile errors; they get fixed in the next commit but stay inside this phase.
 
 ### Phase 2 — Qt 4 → Qt 5 API cleanups (§3)
 `Qt::MiddleButton`, `angleDelta()`, `QTransform`, `QTreeWidgetItem` data-role colours.
@@ -400,7 +463,7 @@ builds in the conversion chat). Each phase is handed over with:
 
 1. `mkdir build && cd build && cmake .. && make` — full configure + compile log.
 2. `make clean` — confirms the clean target exists.
-3. On success, a short smoke run from `bin/`: application starts, loads `bin/map/Moscow.pmz`,
+3. On success, a short smoke run from `build/bin/`: application starts, loads `bin/map/Moscow.pmz`,
    the search field finds a station, a route is drawn, zoom (wheel) and pan (middle drag) work,
    settings dialog opens and saves, and the language switch to `ru` still decodes correctly.
 4. Qt 5 deprecation warnings are recorded verbatim (not suppressed) — they are the checklist for
@@ -415,10 +478,10 @@ Nothing in this plan assumes a successful build has happened.
 | # | Content |
 |---|---|
 | 1 | `qt5conversionplan.md` (this document) |
-| 2 | `CMakeLists.txt` + §2.2/§2.4 minimal fixes + codec helper |
+| 2 | `CMakeLists.txt` + §2.2/§2.4 minimal compile fixes (phase 1) |
 | 3 | API deprecations (`Qt::MiddleButton`, `angleDelta()`, `QTransform`, item colours) |
 | 4 | dead `Q_WS_*`/Symbian/WinCE/Android/Maemo branches removed |
-| 5 | Haiku zip `utime` support, path decision, README requirements line |
+| 5 | codec hardening helper, Haiku zip `utime` support, path decision, README requirements line |
 | 6 | delete `qmetro.pro` + `.pri` files (only after the CMake build is confirmed) |
 
 Out of scope, listed as follow-ups: QtQuick edition, alarm/QtMultimedia port, NFC, converting

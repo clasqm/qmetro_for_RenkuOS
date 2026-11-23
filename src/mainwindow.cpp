@@ -8,6 +8,8 @@
 #include <QLocale>
 #include <QLibraryInfo>
 #include <QDir>
+#include <QGuiApplication>
+#include <QScreen>
 
 #include "ui_mainwindow.h"
 #include "mainwindow.h"
@@ -26,6 +28,19 @@
 #include "flickcharm.h"
 
 #include "swipegesturerecognizer.h"
+
+// Qt 5: QDesktopWidget is deprecated (and removed in Qt 6), and unlike Qt 4
+// the class is no longer pulled in by <QtGui>. Query the primary screen
+// instead; on a single-screen desktop this matches the old desktop() metrics.
+static QSize screenSize()
+{
+ return QGuiApplication::primaryScreen()->geometry().size();
+}
+
+static QRect screenAvailableRect()
+{
+ return QGuiApplication::primaryScreen()->availableGeometry();
+}
 
 //#ifdef MEEGO_EDITION_HARMATTAN
 //#include <QX11Info>
@@ -197,7 +212,7 @@ QMainWindow(parent),map(NULL),SettingsWindow(NULL),ui(new Ui::MainWindow),mUi(NU
   removeToolBar(ui->toolBar);
 
   // set UI size for device
-  Config.appIconSize=ICONSIZE_DEFAULT=ICONSIZE=qMin(qApp->desktop()->width(),qApp->desktop()->height()) / qreal(6.5);
+  Config.appIconSize=ICONSIZE_DEFAULT=ICONSIZE=qMin(screenSize().width(),screenSize().height()) / qreal(6.5);
 //  Config.appUiScale=1;
  }
  else
@@ -320,7 +335,7 @@ if(LITE)
 
  }else
  {
-  resize(qApp->desktop()->width(),qApp->desktop()->height());
+  resize(screenSize().width(),screenSize().height());
   ui->pMap->layout()->addWidget(map);
   //centralWidget()->layout()->addWidget(map);
   //setCentralWidget(map);
@@ -332,7 +347,7 @@ if(LITE)
  map->show();
 
  if(windowState()==Qt::WindowMaximized) // Under linux that need for correct FitInView
-  map->resize(qApp->desktop()->availableGeometry().width(),qApp->desktop()->availableGeometry().height()-(height()-map->height())-20);
+  map->resize(screenAvailableRect().width(),screenAvailableRect().height()-(height()-map->height())-20);
 
  loadSettings();
 
@@ -442,7 +457,7 @@ if(LITE)
 
 
  // SWIPE!
- QGestureRecognizer* pRecognizer = new SwipeGestureRecognizer(qMin(qApp->desktop()->width(),qApp->desktop()->height())/qreal(1.2));
+ QGestureRecognizer* pRecognizer = new SwipeGestureRecognizer(qMin(screenSize().width(),screenSize().height())/qreal(1.2));
  m_gestureId = QGestureRecognizer::registerRecognizer(pRecognizer);
 
  // UPDATE
