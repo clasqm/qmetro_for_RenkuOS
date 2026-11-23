@@ -157,25 +157,8 @@ TMobileUi::TMobileUi(QWidget *parent,TMapView *map,int type) : MapView(map),Text
   ui->stackMain->addWidget(Description);
 
 
-#if defined(Q_WS_MAEMO_5)
-//  Description->setAttribute(Qt::WA_Maemo5StackedWindow);
-//  Description->setWindowFlags(Qt::Window);
-//  Description->setAttribute(Qt::WA_Maemo5AutoOrientation);
-
-  //  bZoomIn->setShortcut(QKeySequence(Qt::Key_F7));
-  //  bZoomOut->setShortcut(QKeySequence(Qt::Key_F8));
-  if(mainWnd->Config.appSkinName==SKIN_DEFAULT)
-  {
-   QIcon icoFullScreen=QIcon::fromTheme(QLatin1String("general_fullsize"));
-   if(!icoFullScreen.isNull()) ui->mFullScreen->setIcon(icoFullScreen);
-   QIcon icoClose=QIcon::fromTheme(QLatin1String("general_close"));
-   if(!icoClose.isNull()) ui->mExit->setIcon(icoClose);
-  }
-  ui->textDescription->setTextInteractionFlags(Qt::TextSelectableByKeyboard);
-#else
  FlickCharm *fcharm = new FlickCharm(TextDesc);
  fcharm->activateOn(TextDesc);
-#endif
 
   // Description
   connect(map,SIGNAL(trackText(QString)),LabelInfo,SLOT(setText(QString)));

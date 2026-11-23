@@ -124,26 +124,6 @@ Settings::Settings(QWidget *parent) :
  connect(mainWnd->Updater,SIGNAL(onCheckNow(QString)),labelLastCheckDate,SLOT(setText(QString)));
 #endif
 
-#ifdef Q_OS_SYMBIAN // QDialogButtonBox not supported - replaced QPushButton
- ui->buttonBox->hide();
- QHBoxLayout *HLayout = new QHBoxLayout;
- QWidget *SoftKeysBar = new QWidget(this);
- HLayout->setContentsMargins(0,10,0,0);
- QPushButton *aSave = new QPushButton(ui->buttonBox->buttons().first()->text());
- connect(aSave, SIGNAL(clicked()),this, SLOT(on_buttonBox_accepted()));
- connect(aSave, SIGNAL(clicked()),this, SLOT(accept()));
-
- QPushButton *aCancel = new QPushButton(ui->buttonBox->buttons().last()->text());
- connect(aCancel, SIGNAL(clicked()),this, SLOT(on_buttonBox_rejected()));
- connect(aCancel, SIGNAL(clicked()),this, SLOT(reject()));
-
- HLayout->addWidget(aSave);
- HLayout->addWidget(aCancel);
- SoftKeysBar->setLayout(HLayout);
- layout()->addWidget(SoftKeysBar);
-#endif
-
-#ifndef Q_WS_MAEMO_5 // maemo has kinetic
  QObjectList l = ui->toolBox->children();
  for (QObjectList::iterator it = l.begin(); it < l.end(); it++)
   if (QScrollArea *scroll = dynamic_cast<QScrollArea *>(*it))
@@ -153,7 +133,6 @@ Settings::Settings(QWidget *parent) :
    if(!MobileVersion) scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   }
  l.clear();
-#endif
 
  QFontMetrics fm(ui->toolBox->font());
  QString ToolStyle="QToolBox{icon-size:%1px;}"+ui->toolBox->styleSheet();
@@ -218,9 +197,6 @@ Settings::Settings(QWidget *parent) :
  {
 //  ui->checkMShowScrollbar->setChecked(0);
   ui->checkMShowScrollbar->setVisible(0);
-#if defined(MEEGO_EDITION_HARMATTAN)
-  ui->checkWFullScreen->setVisible(0);
-#endif
   setAttribute(Qt::WA_DeleteOnClose);
  }
 

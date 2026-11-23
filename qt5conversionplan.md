@@ -1,6 +1,7 @@
 # qMetro: Qt 4 → Qt 5 Conversion Plan (Haiku / RenkuOS)
 
-Status: plan only — no source changes made yet.
+Status: phases 1–5 implemented on `converttoqt5` (see §11); phase 6 awaits a confirmed
+CMake build.
 Target: Qt 5.15.19 (HaikuPorts `qt5`, `qt5_devel`, `qt5_tools`, `qt5_script`, `qt5_script_devel`).
 Branch: `converttoqt5`.
 
@@ -486,3 +487,21 @@ Nothing in this plan assumes a successful build has happened.
 
 Out of scope, listed as follow-ups: QtQuick edition, alarm/QtMultimedia port, NFC, converting
 old-style `SIGNAL()/SLOT()` connects, `make install` + `.hpkg` recipe.
+
+---
+
+## 11. Implementation log
+
+Implemented on `converttoqt5`, awaiting the maintainer's first CMake/Qt5 build:
+
+| Phase | State | Notes |
+|---|---|---|
+| 1 — CMake + minimal fixes | done | `CMakeLists.txt`, `QScreen` helpers, `QtWidgets` guards in `completer.h`/`mobileui.cpp` |
+| 2 — deprecated APIs | done | `Qt::MiddleButton`, `angleDelta()`, `QTransform` (mapview + mapnode), `QTreeWidgetItem::setBackground` |
+| 3 — dead platform branches | done | `Q_WS_MAEMO_5`, `MEEGO_EDITION_HARMATTAN`, `Q_OS_SYMBIAN`, `Q_OS_ANDROID`, `Q_OS_WINCE` blocks removed from the built sources; `TApplication` is a plain `QApplication` now |
+| 4 — Haiku specifics | done | `Q_OS_HAIKU` added to both `utime` conditions in `zipglobal.cpp`, `toTime_t()` → `toSecsSinceEpoch()`; path decision kept as `applicationDirPath()` (see §5 phase 4) |
+| 5 — codec hardening | done | new `src/textcodec.h` (`mapCodec()` with UTF-8 fallback), used in `mainwindow.cpp` and `mapview.cpp` |
+| 6 — retire qmake | **pending** | needs a confirmed `cmake .. && make` from the maintainer first |
+
+Not compiled here: this workspace has no Qt 5 and no Haiku toolchain, so phases 1–5 are
+unverified beyond configure/staging checks and source inspection.

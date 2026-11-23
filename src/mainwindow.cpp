@@ -28,6 +28,7 @@
 #include "flickcharm.h"
 
 #include "swipegesturerecognizer.h"
+#include "textcodec.h"
 
 // Qt 5: QDesktopWidget is deprecated (and removed in Qt 6), and unlike Qt 4
 // the class is no longer pulled in by <QtGui>. Query the primary screen
@@ -48,11 +49,7 @@ static QRect screenAvailableRect()
 //#include <X11/Xlib.h>
 //#endif
 
-#ifdef Q_OS_SYMBIAN
- #define _DEF( x ) QString(x).remove('"') // Symbian 474 "\"TEXT\""
-#else
- #define _DEF( x ) QString(x)
-#endif
+#define _DEF( x ) QString(x)
 
 QString URL_APP="http://qmetro.sf.net";
 QString URL_MAPS="http://pmetro.su/Maps.html";
@@ -94,18 +91,13 @@ QMainWindow(parent),map(NULL),SettingsWindow(NULL),ui(new Ui::MainWindow),mUi(NU
 {
  qApp->setApplicationName(_DEF(APPNAME));
 
-#if defined(Q_OS_WINCE) || defined(Q_OS_SYMBIAN) || defined(Q_WS_MAEMO_5) || defined(MEEGO_EDITION_HARMATTAN) || defined(Q_OS_ANDROID)
- MobileVersion=1;
- qApp->setOverrideCursor(Qt::BlankCursor);
-#else
  MobileVersion=0;
  LITE=0;
-#endif
 
  //MobileVersion=1;
  //setAttribute(Qt::WA_AutoOrientation);
  setAttribute(Qt::WA_AcceptTouchEvents);
- codePage = QTextCodec::codecForName("Windows-1251");
+ codePage = mapCodec();
  SKIN_DEFAULT=Config.appSkinName=this->style()->objectName().toLower();
  STYLE_FONT_DEFAULT=qApp->font().toString();
  mainWnd=this;
@@ -136,26 +128,6 @@ QMainWindow(parent),map(NULL),SettingsWindow(NULL),ui(new Ui::MainWindow),mUi(NU
   appConfigFile=QString("%1/config/settings/%2_settings").arg(home).arg(APPNAME);
  }
 #endif
-#if defined(Q_WS_MAEMO_5) || defined(MEEGO_EDITION_HARMATTAN)
- #if defined(Q_WS_MAEMO_5) && !defined(QML_EDITION)
- setAttribute(Qt::WA_Maemo5AutoOrientation);
- setAttribute(Qt::WA_Maemo5StackedWindow);
- setAttribute(Qt::WA_Maemo5NonComposited);
- #else
- MobileVersion=2;
- #endif
-
- appPath=QString("/home/user/MyDocs/.local/share/%1/").arg(APPNAME);
- appConfigFile=QString("/home/user/.config/%1/config.conf").arg(APPNAME);
-#endif
-#ifdef Q_OS_ANDROID
- appPath=QString("/sdcard/Android/data/%1/").arg(APPNAME);
- MobileVersion=2;
-#endif
-#ifdef Q_OS_SYMBIAN
- appPath=QString("e:/data/%1/").arg(_DEF(APPNAME));
-#endif
-
  if(appMapPath.isEmpty()) appMapPath=appPath+"map/";
  if(appConfigFile.isEmpty()) appConfigFile=appPath+"config.ini";
  if(appCachePath.isEmpty())
@@ -238,26 +210,6 @@ QMainWindow(parent),map(NULL),SettingsWindow(NULL),ui(new Ui::MainWindow),mUi(NU
 #if defined(Q_OS_LINUX) || defined(Q_OS_FREEBSD) || defined(Q_OS_HAIKU)
  ui->menuHelp->setIcon(QIcon());
 #endif
-#ifdef Q_OS_SYMBIAN
- ui->menuFile->menuAction()->setVisible(0);
- ui->menuHelp->menuAction()->setVisible(0);
- menuBar()->addActions(ui->menuFile->actions());
- menuBar()->addMenu(ui->menuSetting);
- menuBar()->addActions(ui->menuHelp->actions());
-#endif
-#ifdef Q_OS_ANDROID
- ui->menuSetting->removeAction(ui->menuLanguage->menuAction());
- menuBar()->removeAction(ui->menuInfo->menuAction());
- menuBar()->removeAction(ui->menuView->menuAction());
- menuBar()->removeAction(ui->menuHelp->menuAction());
- menuBar()->removeAction(ui->menuFile->menuAction());
- menuBar()->removeAction(ui->menuSetting->menuAction());
- menuBar()->addActions(ui->menuFile->actions());
- menuBar()->addMenu(ui->menuSetting);
- menuBar()->addMenu(ui->menuLanguage);
- menuBar()->addActions(ui->menuHelp->actions());
-#endif
-
 #ifdef QT_NO_DEBUG
  ui->menuView->menuAction()->setVisible(0);
  ui->menuInfo->menuAction()->setVisible(0);
@@ -433,13 +385,6 @@ if(LITE)
 #endif
  }
 
-#ifdef Q_OS_SYMBIAN
- // Remove context menu from all widgets ("Actions")
- QWidgetList widgets=QApplication::allWidgets();
- foreach(QWidget* w,widgets) w->setContextMenuPolicy(Qt::NoContextMenu);
- widgets.clear();
-#endif
-
 
  ini->endGroup();
 
@@ -447,10 +392,6 @@ if(LITE)
  {
   int xOffset, yOffset;
   xOffset=yOffset=0;
-#if defined(MEEGO_EDITION_HARMATTAN)
-  xOffset=-75;
-  yOffset=175;
-#endif
   map->horizontalScrollBar()->setValue(Config.mapPosition.x()+xOffset);
   map->verticalScrollBar()->setValue(Config.mapPosition.y()+yOffset);
  }
@@ -529,9 +470,6 @@ void MainWindow::loadNodeDefault()
 void MainWindow::checkNodeDefault()
 {
  char first=0;
-#ifdef Q_OS_SYMBIAN
- first=2;
-#endif
  map->nodePopup->actions().at(first)->setEnabled(map->nodeClick->HasInfo);
  map->nodePopup->actions().at(first)->setText(map->nodeClick->DisplayName+"...");
  map->nodePopup->actions().at(map->nodePopup->actions().count()-1)->setChecked((map->nodeClick->ID==Config.mapDefaultStationID));
@@ -546,14 +484,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e)
   {
    ui->retranslateUi(this);
    if(SettingsWindow) SettingsWindow->ui->retranslateUi(SettingsWindow);
-#ifdef Q_WS_MAEMO_5
-   ui->mPreference->setText(ui->menuSetting->title());
-#endif
-#if defined(Q_OS_SYMBIAN) || defined(Q_OS_ANDROID)
-   QList<QMenu*> menus=findChildren<QMenu*>();
-   foreach(QMenu *m,menus) m->setTitle(m->title().remove("&"));
-   menus.clear();
-#endif
    return 1;
   }
   break;
@@ -637,9 +567,6 @@ QString MainWindow::getMapDefaultDir()
 void MainWindow::openMap(QString fileName)
 {
  QFileDialog::Options options;
-#ifdef Q_OS_WINCE
- options=QFileDialog::DontUseNativeDialog;
-#endif
  QString MapPath=getMapDefaultDir();
 
 // ZIPed maps will be unpacked and updated
@@ -982,29 +909,18 @@ void MainWindow::on_mPreference_triggered()
  if(!SettingsWindow)
  {
   SettingsWindow = new Settings(this);
-
-#ifdef Q_WS_MAEMO_5
-  SettingsWindow->setAttribute(Qt::WA_Maemo5StackedWindow);
-  SettingsWindow->setWindowFlags(Qt::Window);
-  SettingsWindow->setAttribute(Qt::WA_Maemo5AutoOrientation);
-#endif
  }
 
  SettingsWindow->loadSettingsToUi(AppConfig);
 
  if(MobileVersion)
  {
-#ifndef Q_WS_MAEMO_5
   connect(SettingsWindow,SIGNAL(showed()),this,SLOT(toFullScreen()));
   connect(SettingsWindow,SIGNAL(closed()),this,SLOT(showPageMap()));
   connect(SettingsWindow,SIGNAL(closed()),SettingsWindow,SLOT(close()));
   SettingsWindow->setWindowFlags(Qt::Widget);
   ui->stackMain->addWidget(SettingsWindow);
   ui->stackMain->setCurrentIndex(ui->stackMain->count()-1);
-#else
-  SettingsWindow->show();
-#endif
-
 
  //      MobileVersion==2 ? SettingWindow->showFullScreen():SettingWindow->showMaximized();
  }
@@ -1043,10 +959,8 @@ void infoAddTab(QWidget *widget, const QString &Caption,const QString &Text)
   TextEdit->setPalette(pal);
  }
 
-#ifndef Q_WS_MAEMO_5
  FlickCharm *fcharm = new FlickCharm(TextEdit);
  fcharm->activateOn(TextEdit);
-#endif
  TextEdit->setTextInteractionFlags(Qt::LinksAccessibleByMouse | Qt::TextSelectableByMouse);
  TextEdit->setText(Text); 
  TextEdit->setReadOnly(1);
@@ -1095,12 +1009,6 @@ void MainWindow::nodeInformation()
   DetailsWindow->setWindowTitle(DetailsWindow->windowTitle()+" "+map->nodeClick->DisplayName);
   DetailsWindow->resize(640,480);
  }
-
-#ifdef Q_WS_MAEMO_5
- DetailsWindow->setAttribute(Qt::WA_Maemo5StackedWindow);
- DetailsWindow->setWindowFlags(Qt::Window);
- DetailsWindow->setAttribute(Qt::WA_Maemo5AutoOrientation);
-#endif
 
  map->loadNodeInfo(map->nodeClick);
 
@@ -1486,9 +1394,7 @@ QString MainWindow::getMessageInstalledMaps()
 void MainWindow::on_mAddMap_triggered()
 {
  QString MapPath=appPath+"map/";
-#if !defined(MEEGO_EDITION_HARMATTAN)
  if(QMessageBox::information(this,tr("Add maps"),getMessageAddMap()))
-#endif
  {
      if(Config.locale!="ru")
          QDesktopServices::openUrl(QUrl(URL_TRANSLATE.arg(Config.locale).arg(URL_MAPS)));
@@ -1513,9 +1419,7 @@ void MainWindow::on_mFullScreen_toggled(bool checked)
  if(MobileVersion)
  {
   ui->mExit->setVisible(checked); // menu (MobileUI - button in mobileui)
-#ifndef Q_WS_MAEMO_5
   menuBar()->setVisible(!checked);
-#endif
  }
  else (checked ? ui->toolBar->addAction(ui->mExit):ui->toolBar->removeAction(ui->mExit));
 
@@ -1537,11 +1441,7 @@ void MainWindow::setScaleForUi(qreal UiScale,qreal UiButtonScale)
 
  if(MobileVersion)
  {
-#if defined(Q_WS_MAEMO_5)
-  Config.appFont.setPixelSize(ICONSIZE_DEFAULT/qreal(2.7));
-#else
   Config.appFont.setPixelSize(ICONSIZE_DEFAULT/qreal(2.5));
-#endif
  }
 
  QFont font=Config.appFont;

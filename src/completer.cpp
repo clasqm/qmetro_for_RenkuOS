@@ -126,12 +126,7 @@ void TCompleter::showCompletion(QList< QPair<QString,QColor> > list)
   QTreeWidgetItem * item;
   item = new QTreeWidgetItem(popup);
   item->setText(indName, list.at(i).first);
-#ifdef Q_WS_MAEMO_5
-  item->setText(indColor,"=");
-  item->setFont(indColor,QFont("",QFont().pointSize()*2,87));
-  item->setTextColor(indColor, list.at(i).second);
-#endif
-  item->setBackgroundColor(indColor,list.at(i).second);
+  item->setBackground(indColor,QBrush(list.at(i).second));
   //item->setIcon(indColor,); //icon with transparent
   item->setTextAlignment(indColor, Qt::AlignCenter);
  }

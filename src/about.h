@@ -14,11 +14,7 @@
 #include "mapview/maplayer.h"
 #include "flickcharm.h"
 
-#ifdef Q_OS_SYMBIAN
- #define _DEF( x ) QString(x).remove('"') // Symbian 474 "\"TEXT\""
-#else
- #define _DEF( x ) QString(x)
-#endif
+#define _DEF( x ) QString(x)
 
 #ifdef QMETRO_HAVE_ALARM
 #include "alarm/audiooutput.h"
@@ -49,14 +45,8 @@ public:
      Info= new QTextBrowser();
      //Info->setStyleSheet("border:1px solid grey;");
      setWindowTitle(tr("About")+QString(" %1").arg(_DEF(APPNAME)));
-#ifdef Q_WS_MAEMO_5
-     setAttribute(Qt::WA_Maemo5StackedWindow);
-     setWindowFlags(Qt::Window);
-     setAttribute(Qt::WA_Maemo5AutoOrientation);
-#else
      FlickCharm *fcharm=new FlickCharm(Info);
      fcharm->activateOn(Info);
-#endif
 
      setWindowFlags(windowFlags() & (~Qt::WindowContextHelpButtonHint));
      setAttribute(Qt::WA_DeleteOnClose);
@@ -166,11 +156,6 @@ public:
      playerCreate();
    //Player->loadAudioFile(":/test.xmz");
 
- #ifdef Q_OS_SYMBIAN
-//        qDebug() << "ATTENTION: Stupid rule of Nokia QA!";
-        connect(qApp,SIGNAL(appFocusGained()),this,SLOT(playerCreate()));
-        connect(qApp,SIGNAL(appFocusLost()),this,SLOT(playerDelete()));        
- #endif
 #endif
 
     }

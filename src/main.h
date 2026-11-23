@@ -4,11 +4,6 @@
 #include <QDebug>
 #include <QApplication>
 
-#ifdef Q_OS_SYMBIAN
-#include <QSymbianEvent>
-#include <w32std.h>
-#endif
-
 class TApplication : public QApplication
 {
 Q_OBJECT
@@ -16,35 +11,6 @@ Q_OBJECT
 public:
  TApplication( int argc, char** argv ) : QApplication( argc, argv ) {}
 
-#ifdef Q_OS_SYMBIAN // Special for STUPID RULE of Nokia QA
-
-protected:
- bool symbianEventFilter( const QSymbianEvent* symbianEvent )
- {
-  const TWsEvent *event = symbianEvent->windowServerEvent();
-  if(!event) return false;
-
-  switch( event->Type() ) {
-  case EEventFocusGained: {
-   emit appFocusGained();
-//   qDebug() << "Focus gained";
-   break;
-  }
-  case EEventFocusLost: {
-   emit appFocusLost();
-//   qDebug() << "Focus lost";
-   break;
-  }
-  default: break;
-  }
-
-  return false;
- }
-public slots:
-signals:
- void appFocusGained();
- void appFocusLost();
-#endif // Q_OS_SYMBIAN
 };
 
 

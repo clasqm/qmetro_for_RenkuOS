@@ -10,11 +10,7 @@
 #include "update.h"
 #include "download.h"
 
-#ifdef Q_OS_SYMBIAN
- #define _DEF( x ) QString(x).remove('"') // Symbian 474 "\"TEXT\""
-#else
- #define _DEF( x ) QString(x)
-#endif
+#define _DEF( x ) QString(x)
 
 #ifndef QMETRO_UPDATE_URL
  #define QMETRO_UPDATE_URL "http://qmetro.sf.net/update"

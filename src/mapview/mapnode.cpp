@@ -2,6 +2,7 @@
 #include <QGraphicsScene>
 #include <QGraphicsSceneMouseEvent>
 #include <QPainter>
+#include <QTransform>
 
 #include "mapview.h"
 #include "maproute.h"
@@ -34,9 +35,7 @@ TMapNode::TMapNode(TMapView *nodeMap,TMapRoute *nodeRoute, QString nodeName, int
  NRect=nullR;
  Rect=nullR;
 
-#ifndef Q_OS_WINCE
  if(!Map->config.MobileVersion) setCursor(Qt::PointingHandCursor);
-#endif
 }
 void TMapNode::init()
 {
@@ -69,7 +68,7 @@ void TMapNode::init()
    Vertical=1;
   }
   Align+=Qt::AlignLeft;
-  QMatrix matrix;
+  QTransform matrix;
   QPainterPath pRect;
 
   p.drawText(NRect90,Align,DisplayName,&NRect90);

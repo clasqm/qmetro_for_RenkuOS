@@ -27,9 +27,11 @@
 #include <QPair>
 #include <QScrollBar>
 #include <QTouchEvent>
+#include <QTransform>
 
 #include "../zip/unzip.h"
 #include "../ini/inisettings.h"
+#include "../textcodec.h"
 #include "../flickcharm.h"
 
 #include "mapview.h"
@@ -68,7 +70,7 @@ TMapView::TMapView(QString AppPath, QString CachePath) :
  viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
  //setAttribute(Qt::WA_NoSystemBackground);
  //setAttribute(Qt::WA_PaintOnScreen);
-#if OPENGL_ENABLE //defined(Q_WS_MAEMO_5) //defined(Q_OS_WIN32) //!(defined Q_OS_WINCE || defined Q_OS_SYMBIAN)
+#if OPENGL_ENABLE
  if(QGLFormat::hasOpenGL())
  {
   QGLFormat fmt = QGLFormat::defaultFormat();
@@ -79,15 +81,7 @@ TMapView::TMapView(QString AppPath, QString CachePath) :
  }
 #endif
  
-#if defined(Q_OS_WINCE) || defined(Q_OS_SYMBIAN) || defined(Q_WS_MAEMO_5)
- config.MobileVersion=1;
-#else
  config.MobileVersion=0;
-#endif
-
-#ifdef Q_WS_MAEMO_5
- setAttribute(Qt::WA_Maemo5NonComposited);
-#endif
 
  config.locale=QLocale::system().name().section("_",0,0);
  initTranslit();
@@ -134,7 +128,7 @@ TMapView::TMapView(QString AppPath, QString CachePath) :
  params.delayIndex=params.delayToMetro=0;
  params.appPath=AppPath;
  params.appCachePath=CachePath;
- codePage = QTextCodec::codecForName("Windows-1251");
+ codePage = mapCodec();
  
  TimerPopup.setInterval(1000);
  TimerPopup.setSingleShot(1);
@@ -240,17 +234,20 @@ void TMapView::keyPressEvent(QKeyEvent *event)
 
 void TMapView::wheelEvent(QWheelEvent *event)
 {
- if(event->buttons()==Qt::MidButton)
+ const QPoint delta=event->angleDelta();
+ const bool horizontal=qAbs(delta.x()) > qAbs(delta.y());
+
+ if(event->buttons()==Qt::MiddleButton)
  {
-  int offset=event->delta();
+  int offset=horizontal ? delta.x() : delta.y();
   mapStartDragging();
-  if (event->orientation() == Qt::Horizontal)
+  if(horizontal)
    horizontalScrollBar()->setValue(horizontalScrollBar()->value()-offset);
   else
    verticalScrollBar()->setValue(verticalScrollBar()->value()-offset);
  }
  else
-  scaleMap(pow(qreal(2), event->delta()/qreal(240)));
+  scaleMap(pow(qreal(2), delta.y()/qreal(240)));
 
 }
 
@@ -259,7 +256,7 @@ void TMapView::wheelEvent(QWheelEvent *event)
 //{
 // p->eraseRect(clip);
 
-// QMatrix wm(p->worldMatrix());
+// QTransform wm(p->worldMatrix());
 
 // if(wm.m11()!=1 && clip.intersects(bgimage->rect()))
 // {
@@ -290,7 +287,7 @@ void TMapView::wheelEvent(QWheelEvent *event)
 //  ch = qRound( ch * wm.m11() );
 //  img = img.scaled( (int) cw, (int) ch, Qt::IgnoreAspectRatio,
 //                    wm.m11() > .8 ? Qt::SmoothTransformation : Qt::FastTransformation );
-//  p->setWorldMatrix( QMatrix( 1, 0, 0, 1, wm.dx(), wm.dy() ) );
+//  p->setWorldMatrix( QTransform( 1, 0, 0, 1, wm.dx(), wm.dy() ) );
 //  p->drawImage( QPointF( cx * wm.m11(), cy * wm.m11() ), img );
 //  p->setWorldMatrix( wm );
 // }	else
@@ -891,7 +888,7 @@ void TMapView::addPaintCmd(const QString &eParam,DrawType eType,QList<TPaintCmd>
 
    if(!angle.isEmpty())
    {
-    QMatrix matrix;
+    QTransform matrix;
     matrix.translate(x,y);
     matrix.rotate(-angle.toFloat());
     matrix.translate(-x,-y);
@@ -1606,7 +1603,7 @@ void TMapView::mousePressEvent (QMouseEvent *event)
  QGraphicsView::mousePressEvent(event);
 
  nodeClickPos=event->pos();
- if(event->button()==Qt::MidButton)
+ if(event->button()==Qt::MiddleButton)
  {
   mapStartDragging();
   fitInView(QRectF(0,0,mapWidth,mapHeight),Qt::KeepAspectRatioByExpanding); //fitMap();

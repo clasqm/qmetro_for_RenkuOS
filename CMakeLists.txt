@@ -56,6 +56,7 @@ set(QMETRO_HEADERS
     src/settings.h
     src/details.h
     src/about.h
+    src/textcodec.h
     src/completer.h
     src/mobileui.h
     src/flickcharm.h

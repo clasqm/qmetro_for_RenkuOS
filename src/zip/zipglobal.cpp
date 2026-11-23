@@ -27,7 +27,7 @@
 
 #include "zipglobal.h"
 
-#if defined(Q_OS_WIN) || defined(Q_OS_WINCE) || defined(Q_OS_LINUX) || defined (Q_OS_MACX)
+#if defined(Q_OS_WIN) || defined(Q_OS_WINCE) || defined(Q_OS_LINUX) || defined (Q_OS_MACX) || defined(Q_OS_HAIKU)
 #define OSDAB_ZIP_HAS_UTC
 #include <ctime>
 #else
@@ -36,7 +36,7 @@
 
 #if defined(Q_OS_WIN)
 #include <QtCore/qt_windows.h>
-#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX)
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX) || defined(Q_OS_HAIKU)
 #include <utime.h>
 #endif
 
@@ -140,10 +140,10 @@ bool OSDAB_ZIP_MANGLE(setFileTimestamp)(const QString& fileName, const QDateTime
     CloseHandle(hFile);
     return success;
 
-#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX)
+#elif defined(Q_OS_LINUX) || defined(Q_OS_MACX) || defined(Q_OS_HAIKU)
 
     struct utimbuf t_buffer;
-    t_buffer.actime = t_buffer.modtime = dateTime.toTime_t();
+    t_buffer.actime = t_buffer.modtime = dateTime.toSecsSinceEpoch();
     return utime(fileName.toLocal8Bit().constData(), &t_buffer) == 0;
 #endif
 

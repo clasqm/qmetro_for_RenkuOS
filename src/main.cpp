@@ -10,19 +10,10 @@
 //QTime tTimer;
 
 
-#ifdef Q_OS_WINCE
-int WinMain(int argc, char *argv[])
-#else
 int main(int argc, char *argv[])
-#endif
 {
 
  TApplication a(argc, argv);
-
-#ifdef Q_OS_SYMBIAN
- // Enable split screen keyboard
- QCoreApplication::setAttribute(Qt::AA_S60DisablePartialScreenInputMode, false);
-#endif
 
 #if QT_VERSION < 0x050000
  QTextCodec *codec = QTextCodec::codecForName("utf-8");
@@ -36,8 +27,5 @@ int main(int argc, char *argv[])
 
  int result = a.exec();
 
-#if defined(Q_OS_WINCE)
- CloseHandle(mutex);
-#endif
  return result;
 }
