@@ -237,7 +237,6 @@ set(QMETRO_HEADERS
     src/ini/inisettings.h
     src/zip/zipglobal.h src/zip/zip.h src/zip/zip_p.h src/zip/zipentry_p.h
     src/zip/unzip.h src/zip/unzip_p.h
-    src/zlib/zlib.h src/zlib/zconf.h
     src/mapview/mapview.h src/mapview/maproute.h src/mapview/mapgraphics.h
     src/mapview/mapnode.h src/mapview/mapedge.h src/mapview/maplayer.h src/mapview/mapelement.h
     src/update/update.h src/update/download.h
@@ -248,8 +247,7 @@ set(QMETRO_FORMS ui/mainwindow.ui ui/settings.ui ui/details.ui)
 add_executable(qmetro ${QMETRO_SOURCES} ${QMETRO_HEADERS} ${QMETRO_FORMS}
                rc/resource.qrc)
 
-target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
-                                   ${CMAKE_CURRENT_SOURCE_DIR}/src/zlib)
+target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 # The forms live in ui/, not beside the sources that include the generated
 # headers (src/details.cpp includes "ui_details.h"), so AUTOUIC must be told
@@ -294,10 +292,13 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${QMETRO_RUNTIME_D
 ```
 
 Notes:
-* `src/zlib` is on the include path (qmake's `INCLUDEPATH += src/zlib`) because `zip/zip.h`
-  and `zip/unzip.h` include `"zlib.h"`; no zlib **sources** are compiled (the tree only carries
-  `zlib.h`/`zconf.h`), and `zconf.h:13` already contains the `QT_VERSION` guard, while the `-lz`
-  from `qmetro.pro` becomes `ZLIB::ZLIB`.
+* `zip/zip.h` and `zip/unzip.h` include `"zlib.h"`, and that must resolve to the **system**
+  header, not to `src/zlib`. Those two files are Qt's own copies of zlib 1.2.5, built for zlib
+  compiled *inside* Qt Core: with Qt 5 `zconf.h` defines `Z_PREFIX`, which renames every zlib
+  call to `z_*` (`z_crc32`, `z_deflateInit2_`, …), and it also redefines `ZEXTERN` as
+  `Q_DECL_EXPORT`. Linked against the system `libz` (which exports the plain names) that yields
+  undefined references at link time. `src/zlib` is therefore **not** on the include path and its
+  headers are not in the source list; they are unused and can be deleted with the qmake files.
 * The runtime layout is staged, not written into the source tree — see §4.2. It replaces
   qmake's `DESTDIR = bin`, because the program resolves `map/`, `locale/`, `skin/` relative to
   its own directory (`mainwindow.cpp:104`, `appPath=qApp->applicationDirPath()`), so the data
@@ -442,7 +443,8 @@ Already assumed present: `qt5`, `qt5_devel`, `qt5_tools`, `qt5_script`, `qt5_scr
 Needed for this build and **not** in that list:
 
 * `cmake` (and `cmake_devel` if the Haiku build of CMake splits it) — the build system is CMake.
-* `zlib_devel` — `find_package(ZLIB)` + `-lz`; only the headers are vendored, not the library.
+* `zlib_devel` — `find_package(ZLIB)` + `-lz`. Its `zlib.h` is the one the build uses now; the
+  configure step already reports the version it reads from it (`1.3.2` on Haiku).
 
 No other packages are needed while the alarm/NFC/QML trees are excluded. If phase 6's optional
 alarm port is picked up later, `qt5_multimedia`/`qt5_multimedia_devel` would be added then.
@@ -513,7 +515,7 @@ Implemented on `converttoqt5`, awaiting the maintainer's first CMake/Qt5 build:
 | 3 — dead platform branches | done | `Q_WS_MAEMO_5`, `MEEGO_EDITION_HARMATTAN`, `Q_OS_SYMBIAN`, `Q_OS_ANDROID`, `Q_OS_WINCE` blocks removed from the built sources; `TApplication` is a plain `QApplication` now |
 | 4 — Haiku specifics | done | `Q_OS_HAIKU` added to both `utime` conditions in `zipglobal.cpp`, `toTime_t()` → `toSecsSinceEpoch()`; path decision kept as `applicationDirPath()` (see §5 phase 4) |
 | 5 — codec hardening | done | new `src/textcodec.h` (`mapCodec()` with UTF-8 fallback), used in `mainwindow.cpp` and `mapview.cpp` |
-| 6 — retire qmake | **pending** | needs a confirmed `cmake .. && make` from the maintainer first |
+| 6 — retire qmake | **pending** | needs a confirmed `cmake .. && make` from the maintainer first; also deletes the now-unused `src/zlib/{zlib.h,zconf.h}` (see Report 4) |
 
 Not compiled here: this workspace has no Qt 5 and no Haiku toolchain, so phases 1–5 are
 unverified beyond configure/staging checks and source inspection.
@@ -592,6 +594,54 @@ Haiku's Qt 5.15.19 provides all of these. The `qBinaryFind` swap had to keep its
 extension sorting before the first entry. A standalone harness run over the real `ext1`–`ext3`
 tables confirms old and new agree for every entry, for upper-case variants, and for out-of-range
 probes.
+
+**Report 4 — link failure: `undefined reference to z_crc32`, `z_deflateInit2_`, …** Every
+object compiled (96%) and the link died:
+
+```
+ld: CMakeFiles/qmetro.dir/src/zip/zip.cpp.o: undefined reference to `z_get_crc_table'
+ld: ... undefined reference to `z_crc32'
+ld: ... undefined reference to `z_deflateInit2_'
+ld: CMakeFiles/qmetro.dir/src/zip/unzip.cpp.o: undefined reference to `z_inflateInit2_'
+```
+
+Cause: the `z_` prefix. `src/zlib/zlib.h` and `src/zlib/zconf.h` are Qt's own copies of zlib
+1.2.5, shipped for zlib compiled *inside Qt Core*, and `zconf.h:11-14` is explicit about it:
+
+```c
+/* Since Qt Core must export these symbols, define Z_PREFIX to avoid clashes system zlib */
+#include <qglobal.h>
+#if QT_VERSION >= 0x050000
+#define Z_PREFIX
+#endif
+```
+
+With Qt 4 that guard was false and the plain symbol names were used, which is why the old qmake
+build linked. Under Qt 5 `Z_PREFIX` turns every zlib call into a `z_*` name (`#define crc32
+z_crc32`, `#define deflateInit2_ z_deflateInit2_`, …), and `ZLIB::ZLIB` is the system `libz`,
+which exports only the plain names — `nm -D` on it shows `crc32`, `get_crc_table`,
+`deflateInit2_`, `inflate` and no `z_crc32` at all. The header also redefines `ZEXTERN` as
+`Q_DECL_EXPORT`, another sign it is meant for Qt's internal build.
+
+Fix: link the system zlib and use **its** header. `src/zlib` came off the include path and both
+vendored headers came out of the source list, so `#include "zlib.h"` resolves through
+`ZLIB::ZLIB`'s include directories. Two consequences had to be handled:
+
+* `zip_p.h` used `typedef uLongf crc_t`. `uLongf` is 64-bit on LP64, while current zlib declares
+  `const z_crc_t *get_crc_table()` with a 32-bit entry type, so the assignment would no longer
+  compile. It is now `typedef quint32 crc_t` and `zip.cpp` casts the result the way `unzip.cpp`
+  already did (`unzip_p.h` has always kept the table as `const quint32*`). The CRC arithmetic is
+  32-bit and `updateChecksum()` returns `quint32`, so no value changes.
+* `MAX_WBITS` is **not** in zlib's public `zlib.h` (it lives in the private `zutil.h`); the
+  Qt-bundled `zconf.h` happened to define it, and `zip.cpp:643`/`unzip.cpp:812` pass
+  `-MAX_WBITS` for raw deflate. `zipglobal.h` now defines it as 15 under an `#ifndef` guard.
+
+Checked here: a probe translation unit containing the exact expressions from `zip.cpp`,
+`unzip.cpp` and `zip_p.h` (`get_crc_table()` into `const quint32*`, `inflateInit2_(... , -MAX_WBITS,
+ZLIB_VERSION, sizeof(z_stream))`, `deflateInit2_`, `crc32`, and the `CRC32(c,b)` macro) compiles
+with `-Wall -Wextra` against a real system `zlib.h` (1.3 here, 1.3.2 on Haiku) and links with
+`-lz` with no `z_*` references. The configure step on Haiku reporting `found version "1.3.2"`
+confirms `FindZLIB` located that same system header, so the include now resolves to it.
 
 Observed but **not** changed (upstream OSDaB data, outside the Qt 5 port): `ext2` in `zip.cpp`
 lists `"jpg"` before `"jpeg"`, so the table is not strictly ordered and the binary search can never

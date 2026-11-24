@@ -68,8 +68,6 @@ set(QMETRO_HEADERS
     src/zip/zipentry_p.h
     src/zip/unzip.h
     src/zip/unzip_p.h
-    src/zlib/zlib.h
-    src/zlib/zconf.h
     src/mapview/mapview.h
     src/mapview/maproute.h
     src/mapview/mapgraphics.h
@@ -94,11 +92,15 @@ add_executable(qmetro
     rc/resource.qrc
 )
 
-# src/ for the "mapview/...", "ini/..." style includes, src/zlib for the vendored
-# zlib.h/zconf.h that zip/*.cpp include (qmake did the same with INCLUDEPATH += src/zlib).
-target_include_directories(qmetro PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/src
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/zlib)
+target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+# zip/zip.h and zip/unzip.h include "zlib.h" and the code links the system libz
+# (ZLIB::ZLIB below), so that header must be the system one. Do NOT put src/zlib
+# on the include path: those are Qt's own copies of the zlib 1.2.5 headers, built
+# for zlib compiled inside Qt Core, and with Qt 5 they define Z_PREFIX, which
+# renames every zlib call to z_* (z_crc32, z_deflateInit2_, ...) and leaves every
+# one of them unresolved against libz. They are unused now and can go with the
+# qmake files.
 
 # The forms are kept in ui/, not beside the sources that include the generated
 # headers (src/details.cpp includes "ui_details.h"), so AUTOUIC has to be told

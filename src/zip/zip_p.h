@@ -59,8 +59,11 @@ class ZipPrivate : public QObject
     Q_OBJECT
 
 public:
-    // uLongf from zconf.h
-    typedef uLongf crc_t;
+    // get_crc_table() returns 32-bit CRC entries (const z_crc_t* in current
+    // zlib). uLongf is 64-bit on LP64 and does not match that pointer type, so
+    // use the 32-bit Qt type; the CRC arithmetic is 32-bit anyway and
+    // updateChecksum() already returned quint32.
+    typedef quint32 crc_t;
 
 	ZipPrivate();
 	virtual ~ZipPrivate();

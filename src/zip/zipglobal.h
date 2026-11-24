@@ -31,6 +31,14 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QtGlobal>
 
+// The raw-deflate calls in zip.cpp/unzip.cpp pass -MAX_WBITS as windowBits, but
+// zlib's public zlib.h does not declare MAX_WBITS (it lives in the private
+// zutil.h). The Qt-bundled headers this code used to be built against did, so
+// define the standard value here when linking the system zlib.
+#ifndef MAX_WBITS
+#  define MAX_WBITS 15 /* 32K LZ77 window */
+#endif
+
 /* If you want to build the OSDaB Zip code as
    a library, define OSDAB_ZIP_LIB in the library's .pro file and
    in the libraries using it OR remove the #ifndef OSDAB_ZIP_LIB

@@ -284,7 +284,8 @@ ZipPrivate::ZipPrivate() :
 {
 	// keep an unsigned pointer so we avoid to over bloat the code with casts
 	uBuffer = (unsigned char*) buffer1;
-    crcTable =  get_crc_table();
+    // Same cast unzip.cpp uses: the table holds 32-bit CRC values.
+    crcTable =  (const crc_t*) get_crc_table();
 }
 
 //! \internal
