@@ -2,7 +2,7 @@
 
 Subways and metros - QT5 conversion
 
-abandoned qt4 program forked from http://pmetro.su/ to vibe-convert into qt5
+Abandoned QT4 program forked from http://pmetro.su/ to vibe-convert into QT5.
 
 ![qmetro.png](https://i.postimg.cc/QxVwsq5F/qmetro.png)](https://postimg.cc/vcF3tf0y)
 
