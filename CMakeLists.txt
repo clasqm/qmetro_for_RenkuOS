@@ -96,6 +96,13 @@ add_executable(qmetro
 
 target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
+# The forms are kept in ui/, not beside the sources that include the generated
+# headers (src/details.cpp includes "ui_details.h"), so AUTOUIC has to be told
+# where to look for the matching .ui file; otherwise uic fails with
+# "details.ui could not be found in the following directories".
+set_target_properties(qmetro PROPERTIES
+    AUTOUIC_SEARCH_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/ui)
+
 target_compile_definitions(qmetro PRIVATE
     APPNAME="qMetro"
     VERSION="0.7.1"
