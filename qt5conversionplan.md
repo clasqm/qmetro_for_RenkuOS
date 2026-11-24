@@ -248,7 +248,8 @@ set(QMETRO_FORMS ui/mainwindow.ui ui/settings.ui ui/details.ui)
 add_executable(qmetro ${QMETRO_SOURCES} ${QMETRO_HEADERS} ${QMETRO_FORMS}
                rc/resource.qrc)
 
-target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+                                   ${CMAKE_CURRENT_SOURCE_DIR}/src/zlib)
 
 # The forms live in ui/, not beside the sources that include the generated
 # headers (src/details.cpp includes "ui_details.h"), so AUTOUIC must be told
@@ -293,9 +294,10 @@ set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${QMETRO_RUNTIME_D
 ```
 
 Notes:
-* `src/zlib` stays on the include path because `zip/*.cpp` include `zlib.h` — but no zlib
-  **sources** are compiled (the tree only carries headers); `zlib.h`/`zconf.h` already contain
-  the `QT_VERSION` guard at `zconf.h:13`, and the `-lz` from `qmetro.pro` becomes `ZLIB::ZLIB`.
+* `src/zlib` is on the include path (qmake's `INCLUDEPATH += src/zlib`) because `zip/zip.h`
+  and `zip/unzip.h` include `"zlib.h"`; no zlib **sources** are compiled (the tree only carries
+  `zlib.h`/`zconf.h`), and `zconf.h:13` already contains the `QT_VERSION` guard, while the `-lz`
+  from `qmetro.pro` becomes `ZLIB::ZLIB`.
 * The runtime layout is staged, not written into the source tree — see §4.2. It replaces
   qmake's `DESTDIR = bin`, because the program resolves `map/`, `locale/`, `skin/` relative to
   its own directory (`mainwindow.cpp:104`, `appPath=qApp->applicationDirPath()`), so the data
@@ -537,3 +539,26 @@ ${CMAKE_CURRENT_SOURCE_DIR}/ui)`.
 Checked here with stubbed `moc`/`uic` (no Qt 5 in this workspace): the autogen step now passes
 `ui/details.ui`, `ui/mainwindow.ui` and `ui/settings.ui` to `uic` and writes `ui_details.h`,
 `ui_mainwindow.h`, `ui_settings.h`. Real compilation still has to be confirmed on Haiku.
+
+**Report 2 — `src/zlib/zlib.h: No such file or directory`.** The build then failed while compiling
+`qmetro_autogen/mocs_compilation.cpp`, inside `moc_zip_p.cpp` → `zip_p.h` → `zip.h:38`:
+
+```
+fatal error: src/zlib/zlib.h: No such file or directory
+   38 | #include "src/zlib/zlib.h"
+```
+
+Cause: `zip/zip.h` included the vendored zlib header with a path relative to the **project root**.
+That only ever resolved because qmake puts `-I.` (the source root) on the compiler command line;
+the CMake target only had `-I<src>`, and an AUTOMOC-generated file lives in the build tree, so no
+root-relative path resolves any more. `zip/unzip.h:37` already included it as plain `"zlib.h"`.
+
+Fix: `src/zip/zip.h` now does `#include "zlib.h"`, and `CMakeLists.txt` adds
+`${CMAKE_CURRENT_SOURCE_DIR}/src/zlib` to `target_include_directories`, mirroring qmake's
+`INCLUDEPATH += src/zlib` (see `rc/module/main.pri:9`). No root-relative `#include "src/..."`
+remains anywhere in `src/`.
+
+Checked here: with `-I src -I src/zlib`, `"zlib.h"` resolves to the vendored `src/zlib/zlib.h` (the
+probe stops only at its `#include <qglobal.h>`, i.e. Qt's headers, which are absent in this
+workspace); the stub autogen run shows `-I<src/zlib>` on the target's compile flags and still
+feeds all three forms to `uic`.

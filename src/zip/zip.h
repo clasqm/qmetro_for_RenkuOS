@@ -35,7 +35,7 @@
 #include <QtCore/QMap>
 #include <QtCore/QtGlobal>
 
-#include "src/zlib/zlib.h"
+#include "zlib.h"
 
 class QIODevice;
 class QFile;

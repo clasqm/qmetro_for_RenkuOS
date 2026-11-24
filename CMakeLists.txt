@@ -94,7 +94,11 @@ add_executable(qmetro
     rc/resource.qrc
 )
 
-target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# src/ for the "mapview/...", "ini/..." style includes, src/zlib for the vendored
+# zlib.h/zconf.h that zip/*.cpp include (qmake did the same with INCLUDEPATH += src/zlib).
+target_include_directories(qmetro PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/zlib)
 
 # The forms are kept in ui/, not beside the sources that include the generated
 # headers (src/details.cpp includes "ui_details.h"), so AUTOUIC has to be told
