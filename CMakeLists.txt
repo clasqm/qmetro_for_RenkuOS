@@ -99,8 +99,8 @@ target_include_directories(qmetro PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 # on the include path: those are Qt's own copies of the zlib 1.2.5 headers, built
 # for zlib compiled inside Qt Core, and with Qt 5 they define Z_PREFIX, which
 # renames every zlib call to z_* (z_crc32, z_deflateInit2_, ...) and leaves every
-# one of them unresolved against libz. They are unused now and can go with the
-# qmake files.
+# one of them unresolved against libz. They were deleted together with the qmake
+# files.
 
 # The forms are kept in ui/, not beside the sources that include the generated
 # headers (src/details.cpp includes "ui_details.h"), so AUTOUIC has to be told

@@ -515,9 +515,9 @@ Implemented on `converttoqt5`, awaiting the maintainer's first CMake/Qt5 build:
 | 3 — dead platform branches | done | `Q_WS_MAEMO_5`, `MEEGO_EDITION_HARMATTAN`, `Q_OS_SYMBIAN`, `Q_OS_ANDROID`, `Q_OS_WINCE` blocks removed from the built sources; `TApplication` is a plain `QApplication` now |
 | 4 — Haiku specifics | done | `Q_OS_HAIKU` added to both `utime` conditions in `zipglobal.cpp`, `toTime_t()` → `toSecsSinceEpoch()`; path decision kept as `applicationDirPath()` (see §5 phase 4) |
 | 5 — codec hardening | done | new `src/textcodec.h` (`mapCodec()` with UTF-8 fallback), used in `mainwindow.cpp` and `mapview.cpp` |
-| 6 — retire qmake | **pending** | needs a confirmed `cmake .. && make` from the maintainer first; also deletes the now-unused `src/zlib/{zlib.h,zconf.h}` (see Report 4) |
+| 6 — retire qmake | done | `qmetro.pro`, the fourteen `.pri` fragments and the unused `src/zlib/{zlib.h,zconf.h}` deleted; `README` and `rc/locale/translation.txt` now describe the CMake build |
 
-Not compiled here: this workspace has no Qt 5 and no Haiku toolchain, so phases 1–5 are
+Not compiled here: this workspace has no Qt 5 and no Haiku toolchain, so phases 1–6 are
 unverified beyond configure/staging checks and source inspection.
 
 ### Build reports
@@ -648,3 +648,23 @@ lists `"jpg"` before `"jpeg"`, so the table is not strictly ordered and the bina
 find `"jpeg"`. That is pre-existing — `qBinaryFind` missed it too, and the new code reproduces the
 old result exactly. Fixing it means reordering the table and changes the compression level chosen
 for `.jpeg` files, so it belongs in a separate change.
+
+### Phase 6 — qmake retired
+
+The CMake build was confirmed to link on Haiku (Reports 1–4), so the qmake files are gone:
+`qmetro.pro`, `rc/module/*.pri` (5), `rc/platform/*.pri` (5), `rc/locale.pri`,
+`src/nfc/nfcsettings/nfcsettings.pri` and `src/qmlviewer/qmlapplicationviewer.pri` — every `.pro`
+and `.pri` in the tree. The now-unused `src/zlib/{zlib.h,zconf.h}` went with them (Report 4); the
+empty `src/zlib` directory is removed and `CMakeLists.txt` no longer mentions them as pending.
+
+`README`'s requirements block was rewritten for the new build: Qt 5.15 (Core, Gui, Widgets,
+Network), system zlib, CMake 3.16 + C++11, and the documented
+`mkdir build && cd build && cmake .. && make`, with the staged `build/bin/` layout. `libmodplug`
+is no longer listed because the alarm module that used it stays out of the build (§6).
+`rc/locale/translation.txt` pointed its `lupdate`/`lrelease` recipes at `qmetro.pro`; they now use
+`CMakeLists.txt` and `qmetro.ts`.
+
+Left on disk deliberately: the source trees the CMake build does not compile (`src/alarm`,
+`src/nfc`, `src/qml*`, `src/qmlviewer`) and the old packaging (`debian/`, `qtc_packaging/`,
+`rc/qmetro.desktop`). `debian/rules` still calls `qmake-qt4`; it is a Qt 4 Debian recipe that
+`make install` never used, so it is stale either way and is not part of the Haiku build.
