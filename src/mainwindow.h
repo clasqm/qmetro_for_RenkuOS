@@ -124,12 +124,7 @@ public slots:
     void openMap(QString fileName="");
     void scaleMap(qreal scale)
     {
-    #ifdef QML_EDITION
-     QList<TMapView *> m =  findChildren<TMapView *>();
-     if(m.count()) m.at(m.count()-1)->scaleMap(scale);
-    #else
      map->scaleMap(scale);
-    #endif
     }
     void loadSkin(QString skinName="");
 

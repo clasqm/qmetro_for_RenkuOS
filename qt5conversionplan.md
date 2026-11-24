@@ -422,18 +422,23 @@ Delete `qmetro.pro`, `rc/module/*.pri`, `rc/platform/*.pri`, `rc/locale.pri`,
 
 ---
 
-## 6. Modules deliberately left out of the first build
+## 6. Modules outside the Haiku/RenkuOS build (now deleted)
 
-| Tree | Why | Decision |
+This fork targets Haiku and RenkuOS only, so the trees below were removed in phase 6 rather than
+kept as dead weight:
+
+| Tree | Why it is not built | Decision |
 |---|---|---|
-| `src/alarm/**` + libmodplug | `CONFIG += mobility`, `MOBILITY = multimedia`, hardcoded `/usr/include/QtMultimediaKit` (alarm.pri:19); QtMobility does not exist for Qt 5 and is not packaged | exclude; `qmetro.pro` already comments it out. Porting later = QtMultimedia (`QAudioOutput`, already used in `audiooutput.cpp` with Qt5 guards) + drop mobility + CMake `find_package(Qt5 COMPONENTS Multimedia)` |
-| `src/nfc/**` | QtMobility Connectivity (`QNearFieldManager`, `QNearFieldTagType2`) — no Qt 5 equivalent on Haiku | exclude; never referenced from the current build |
-| `src/qml/**`, `src/qmlmain.cpp`, `src/qmlviewer/**` | QtDeclarative (`QDeclarativeView/Item/Context`) was replaced by QtQuick/QtQml in Qt 5; this code was Harmattan-only and also uses `QString::fromAscii` (removed) | exclude; do not port. A QtQuick port would be a separate project |
-| `rc/platform/{win,macx,symbian,android}.pri`, `qtc_packaging/*` | platform packaging for the old targets | keep on disk, unused; delete with phase 6 if desired |
+| `src/alarm/**` (incl. bundled libmodplug) | `CONFIG += mobility`, `MOBILITY = multimedia`, hardcoded `/usr/include/QtMultimediaKit`; QtMobility does not exist for Qt 5 and is not packaged | **deleted**. A later port would use QtMultimedia (`QAudioOutput`, already used in the old `audiooutput.cpp` with Qt5 guards) + `find_package(Qt5 COMPONENTS Multimedia)` |
+| `src/nfc/**` | QtMobility Connectivity (`QNearFieldManager`, `QNearFieldTagType2`) — no Qt 5 equivalent on Haiku | **deleted**; never referenced from the current build |
+| `src/qml/**`, `src/qmlmain.cpp`, `src/qmlmainwindow.h`, `src/qmlviewer/**` | QtDeclarative (`QDeclarativeView/Item/Context`) was replaced by QtQuick/QtQml in Qt 5; this code was Harmattan-only and also uses `QString::fromAscii` (removed) | **deleted**; do not port. A QtQuick port would be a separate project |
+| `debian/`, `qtc_packaging/**` | Debian/Maemo/Harmattan packaging recipes for targets this fork does not have | **deleted** |
+| `rc/icon_{mac.icns,win.ico}`, `rc/info_{mac.plist,win.rc}`, `rc/menu_wince.res`, `rc/qmetro.desktop`, `rc/qmetro_meego.desktop` | macOS/Windows/WinCE/MeeGo/Linux-freedesktop integration files | **deleted** |
+| `rc/img/{favorites,folder-favorites}.png` | not in `rc/resource.qrc` and referenced by no source file | **deleted** |
 
-Consequence: `QMETRO_HAVE_ALARM` is not defined, so `about.h`'s player hooks stay compiled out —
-verify `about.h` guards on `QMETRO_HAVE_ALARM` rather than on `QT_VERSION` (check while doing
-phase 2).
+The `QMETRO_HAVE_ALARM` / `QMETRO_HAVE_VIBRO` / `QMETRO_HAVE_NFC` and `QML_EDITION` blocks in the
+built sources pointed at those trees; they were removed as well (`about.h`, `mainwindow.{h,cpp}`,
+`mapview.cpp`). `QMETRO_HAVE_UPDATE` stays — that module is built and used.
 
 ---
 
@@ -446,8 +451,8 @@ Needed for this build and **not** in that list:
 * `zlib_devel` — `find_package(ZLIB)` + `-lz`. Its `zlib.h` is the one the build uses now; the
   configure step already reports the version it reads from it (`1.3.2` on Haiku).
 
-No other packages are needed while the alarm/NFC/QML trees are excluded. If phase 6's optional
-alarm port is picked up later, `qt5_multimedia`/`qt5_multimedia_devel` would be added then.
+No other packages are needed: the alarm/NFC/QML trees no longer exist (§6). If an alarm port is
+picked up later, `qt5_multimedia`/`qt5_multimedia_devel` would be added then.
 
 ---
 
@@ -664,7 +669,30 @@ is no longer listed because the alarm module that used it stays out of the build
 `rc/locale/translation.txt` pointed its `lupdate`/`lrelease` recipes at `qmetro.pro`; they now use
 `CMakeLists.txt` and `qmetro.ts`.
 
-Left on disk deliberately: the source trees the CMake build does not compile (`src/alarm`,
-`src/nfc`, `src/qml*`, `src/qmlviewer`) and the old packaging (`debian/`, `qtc_packaging/`,
-`rc/qmetro.desktop`). `debian/rules` still calls `qmake-qt4`; it is a Qt 4 Debian recipe that
-`make install` never used, so it is stale either way and is not part of the Haiku build.
+### Removing everything that is not Haiku/RenkuOS
+
+This fork targets Haiku and RenkuOS only, so the material for the abandoned targets is gone too:
+
+* `debian/` and `qtc_packaging/{debian_fremantle,debian_harmattan}` — the Debian, Maemo and
+  Harmattan packaging trees. `debian/rules` still invoked `qmake-qt4`, and none of it was used by
+  the Haiku build or by `make install`.
+* `src/alarm/` (57 files, including the bundled libmodplug), `src/nfc/` (9 files),
+  `src/qml/`, `src/qmlmain.cpp`, `src/qmlmainwindow.h`, `src/qmlviewer/` — QtMobility and
+  QtDeclarative code that cannot build on Qt 5 (§6).
+* `rc/icon_mac.icns`, `rc/info_mac.plist`, `rc/icon_win.ico`, `rc/info_win.rc`,
+  `rc/menu_wince.res`, `rc/qmetro.desktop`, `rc/qmetro_meego.desktop` — macOS, Windows, WinCE,
+  MeeGo and freedesktop integration files. Haiku identifies applications by MIME type and
+  signature, not by a `.desktop` entry.
+* `rc/img/favorites.png` and `rc/img/folder-favorites.png` — leftovers from a removed favourites
+  feature: not listed in `rc/resource.qrc` and referenced by no source file.
+
+With their trees gone, the guards that referenced them were deleted from the sources:
+`QMETRO_HAVE_ALARM`, `QMETRO_HAVE_VIBRO` and `QMETRO_HAVE_NFC` in `about.h` and
+`mainwindow.cpp` (the `About` player hooks, and the `TNFCTicket` member that no longer had a
+declaration), plus the `QML_EDITION` branches in `mainwindow.h`, `mainwindow.cpp` and
+`mapview.cpp`. Those macros were never defined by the CMake build, so the compiled result is
+unchanged — only the dead branches are gone. `QMETRO_HAVE_UPDATE` stays; that module is built.
+
+Kept on purpose: `rc/icons/hicolor/**` (one size is compiled into `rc/resource.qrc` as the window
+icon, and the sizes belong together), `bin/{map,locale,skin}` (runtime data), `rc/locale/*.ts`
+with `translation.txt` (translation sources) and `src/zip`'s upstream `README`/`CHANGELOG`.

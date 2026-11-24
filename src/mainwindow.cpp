@@ -376,13 +376,11 @@ if(LITE)
  {
   ui->mSaveScale->setChecked(1);
   ui->mSavePosition->setChecked(1);
-#if !defined(QML_EDITION)
   if(QMessageBox::question(this,_DEF(APPNAME),
                            getMessageInstalledMaps(),QMessageBox::Yes|QMessageBox::No)==QMessageBox::Yes)
   {
    on_mAddMap_triggered();
   }
-#endif
  }
 
 
@@ -407,10 +405,6 @@ if(LITE)
  connect(Updater,SIGNAL(doneUpdateMaps()),this,SLOT(updateMapsAndReload()));
 #endif
 
-// NFC
-#ifdef QMETRO_HAVE_NFC
- NFC = new TNFCTicket();
-#endif
 }
 
 MainWindow::~MainWindow()
@@ -418,9 +412,6 @@ MainWindow::~MainWindow()
  QGestureRecognizer::unregisterRecognizer(m_gestureId);
 #ifdef QMETRO_HAVE_UPDATE
  delete Updater;
-#endif
-#ifdef QMETRO_HAVE_NFC
- delete NFC;
 #endif
 
  delete ui;
@@ -1423,11 +1414,9 @@ void MainWindow::on_mFullScreen_toggled(bool checked)
  }
  else (checked ? ui->toolBar->addAction(ui->mExit):ui->toolBar->removeAction(ui->mExit));
 
-#ifndef QML_EDITION
  if(checked)
        showFullScreen();
   else showMaximized();
-#endif
 
 }
 

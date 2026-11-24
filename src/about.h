@@ -16,14 +16,6 @@
 
 #define _DEF( x ) QString(x)
 
-#ifdef QMETRO_HAVE_ALARM
-#include "alarm/audiooutput.h"
-#endif
-
-#ifdef QMETRO_HAVE_VIBRO
-//#include "alarm/vibro.h"
-#endif
-
 //#ifdef Q_OS_SYMBIAN
 //extern QString VERSION;
 //#endif
@@ -37,9 +29,6 @@ class About : public QDialog
 public:
     explicit About(QWidget *parent): QDialog(parent)
     {
-#ifdef QMETRO_HAVE_ALARM
-     Player=NULL;
-#endif
      //Logo= new QLabel();
      OK=NULL;
      Info= new QTextBrowser();
@@ -66,17 +55,10 @@ public:
       if(!AuthorOfSkin.isEmpty()) AuthorOfSkin="<br><br>"+tr("Author of skin")+":<br>"+AuthorOfSkin.remove(QRegExp("<[^>]*>"));
      }
 
-     QString LIBS,MODULES=" (Core,Gui";
+     QString MODULES=" (Core,Gui";
 
 #ifdef QMETRO_HAVE_UPDATE
      MODULES+=",Network";
-#endif
-#ifdef QMETRO_HAVE_ALARM
-     MODULES+=",Multimedia";
-     LIBS+="<li>&nbsp;libmodplug";
-#endif
-#ifdef QMETRO_HAVE_NFC
-     MODULES+=",Connectivity";
 #endif
 
      MODULES+=")";
@@ -112,7 +94,7 @@ public:
              "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
              "GNU General Public License for more details.")).arg(URL_MAPS) // 9 10
      .arg(tr("Author of translation: Gusak Leonid").replace(": ",":<br>")) // 11
-     .arg("<li>&nbsp;zlib + OSDaB"+LIBS); // 12
+     .arg("<li>&nbsp;zlib + OSDaB"); // 12
 
      text.replace("<hr>",hr);
 
@@ -147,27 +129,11 @@ public:
      setLayout(VLayout);
      if(OK) OK->setFocus();
 
-#ifdef QMETRO_HAVE_VIBRO
-// VibroFeedback vibro;
-// vibro.start();
-#endif
-
-#ifdef QMETRO_HAVE_ALARM
-     playerCreate();
-   //Player->loadAudioFile(":/test.xmz");
-
-#endif
-
     }
     ~About()
     {
      if(OK) delete OK;
      delete Info;
-#ifdef QMETRO_HAVE_ALARM
-     hide();
-     playerDelete();
-#endif
-
     }
 
 private:
@@ -182,23 +148,6 @@ private:
     QPushButton *OK;
     //QLabel *Logo;
     QTextBrowser *Info;
-
-#ifdef QMETRO_HAVE_ALARM
- AudioPlay *Player;
-
-public slots:
-
- void playerDelete() { Player->deleteLater(); Player=0; }
- void playerCreate()
- {
-  if(!Player)
-  {
-   Player = new AudioPlay(":/audio/xmas.mdz",1);
-   QTimer::singleShot(5000,Player,SLOT(resumePlay()));
-  }
- }
-
-#endif
 
 protected:
     void keyPressEvent(QKeyEvent *e)

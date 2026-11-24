@@ -118,9 +118,7 @@ TMapView::TMapView(QString AppPath, QString CachePath) :
  //setViewportUpdateMode(FullViewportUpdate);
  //if(config.MobileVersion) setInteractive(0);
  setDragMode(QGraphicsView::ScrollHandDrag);
-#ifndef QML_EDITION
  setTransformationAnchor(AnchorUnderMouse);
-#endif
  setResizeAnchor(AnchorViewCenter);
 
  state.mapCached=0;
