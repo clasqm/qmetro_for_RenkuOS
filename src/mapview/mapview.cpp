@@ -417,7 +417,7 @@ void TMapView::scaleMap(qreal scaleFactor)
 {
  if(!state.mapLoaded) return;
  mapStartDragging();
- params.mapZoomFactor = matrix().scale(scaleFactor, scaleFactor).m11(); //mapRect(QRectF(0, 0, 1, 1)).width();
+ params.mapZoomFactor = transform().scale(scaleFactor, scaleFactor).m11(); //mapRect(QRectF(0, 0, 1, 1)).width();
  if (params.mapZoomFactor < qreal(0.3) || params.mapZoomFactor > qreal(15)) return;
  scale(scaleFactor, scaleFactor);
 }
@@ -448,7 +448,7 @@ void TMapView::fitMap()
  else
   fitInView(RectView,Qt::KeepAspectRatio);
 
- params.mapZoomFactor=matrix().m11();
+ params.mapZoomFactor=transform().m11();
 }
 
 void TMapView::loadMap(QString fileName)
@@ -623,7 +623,7 @@ bool TMapView::extractFiles(QString zipFile, QString extractFiles, QString extra
  if(extractFiles.isEmpty()) uz.extractAll(extractDir); else
  {
   //separated mask: file.*;dir/file??.chk
-  QStringList eList = extractFiles.split(";",QString::SkipEmptyParts);
+  QStringList eList = extractFiles.split(";",Qt::SkipEmptyParts);
 
   QList<UnZip::ZipEntry> zList = uz.entryList();
   foreach(const UnZip::ZipEntry& entry,zList)
@@ -1086,7 +1086,7 @@ void TMapView::clearMap()
 
 void TMapView::loadMapLayers(QString LayerFilesTRP)
 {
- QStringList list,tprlist=LayerFilesTRP.split(",",QString::SkipEmptyParts);
+ QStringList list,tprlist=LayerFilesTRP.split(",",Qt::SkipEmptyParts);
  int ind,nodeID=0;
  INISettings map(params.mapCachePath+"Metro.map",codePage);
  foreach(const QString &file, tprlist)
@@ -1729,7 +1729,7 @@ void TMapView::selectedNodesToFront(bool enable)
   if(config.MobileVersion && selectedNode.count()==1)
     verticalScrollBar()->setValue(verticalScrollBar()->value()+verticalScrollBar()->maximum()/12);
 
-  params.mapZoomFactor=matrix().m11();
+  params.mapZoomFactor=transform().m11();
  }
 }
 
@@ -1999,7 +1999,7 @@ void TMapView::findTrack(TMapNode *begin,TMapNode *end)
     for(j=i+1;j<mapTrack.count();j++)
       if (mapTrack.at(j).countSecond < tmp.countSecond) { k=j; tmp=mapTrack.at(j); }
 
-    mapTrack.swap(k,i);
+    mapTrack.swapItemsAt(k,i);
   }
 
  // finding minimum count transfers and set to second

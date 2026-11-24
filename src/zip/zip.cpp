@@ -29,6 +29,8 @@
 #include "zip_p.h"
 #include "zipentry_p.h"
 
+#include <algorithm> // std::lower_bound, replacing deprecated qBinaryFind
+
 // we only use this to seed the random number generator
 #include <ctime>
 
@@ -1021,8 +1023,12 @@ bool operator<(const char* keyword, const KeywordHelper& helper) {
 bool hasExtension(const QString& ext, const char* const* map, int max) {
     const char* const* start = &map[0];
     const char* const* end = &map[max - 1];
-    const char* const* kw = qBinaryFind(start, end, KeywordHelper(ext));
-    return kw != end;
+    // qBinaryFind is deprecated in Qt 5.15; lower_bound has the same result
+    // (first element not ordered before the needle), and the range is sorted.
+    const char* const* kw = std::lower_bound(start, end, KeywordHelper(ext));
+    // lower_bound stops at the insertion point, so an extension that sorts
+    // before every entry also stops short of end: compare for a real match.
+    return kw != end && !KeywordHelper(ext).needle.compare(QLatin1String(*kw));
 }
 }
 

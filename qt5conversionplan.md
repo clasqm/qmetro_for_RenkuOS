@@ -562,3 +562,39 @@ Checked here: with `-I src -I src/zlib`, `"zlib.h"` resolves to the vendored `sr
 probe stops only at its `#include <qglobal.h>`, i.e. Qt's headers, which are absent in this
 workspace); the stub autogen run shows `-I<src/zlib>` on the target's compile flags and still
 feeds all three forms to `uic`.
+
+**Report 3 — `QPainterPath` is incomplete in `mapgraphics.cpp`.** The build got to 67% and stopped:
+
+```
+src/mapview/mapgraphics.cpp:163:48: error: return type 'class QPainterPath' is incomplete
+src/mapview/mapgraphics.cpp:165:15: error: aggregate 'QPainterPath path' has incomplete type
+```
+
+Cause: `mapgraphics.h` declares `QPainterPath splinePath(...)`, `arrowPath(...)` and
+`stairsPath(...)` but only included `<QPainter>`; Qt 4 pulled `QPainterPath` in through it, Qt 5
+no longer does. Fix: `mapgraphics.h` includes `<QPainterPath>` itself. Every other file that uses
+`QPainterPath` (`mapview`, `maproute`, `mapnode`, `mapedge`, `mapelement`) already has it, which is
+why only this one translation unit failed.
+
+The same build printed the Qt 5 deprecations below. They are warnings, not errors, but §5 phase 2
+treats them as its checklist, so they are cleared here as well:
+
+| File | Deprecated | Replaced with |
+|---|---|---|
+| `settings.cpp:36` | `QFontMetrics::width()` | `horizontalAdvance()` (Qt ≥ 5.11) |
+| `zip.cpp:1024` | `qBinaryFind()` | `std::lower_bound()` + explicit equality test (`<algorithm>`) |
+| `mapview.cpp:420,451,1732` | `QGraphicsView::matrix()` | `transform()` |
+| `mapview.cpp:626,1089` | `QString::SkipEmptyParts` | `Qt::SkipEmptyParts` (Qt ≥ 5.14) |
+| `mapview.cpp:2002` | `QList::swap(int,int)` | `swapItemsAt()` (Qt ≥ 5.13) |
+
+Haiku's Qt 5.15.19 provides all of these. The `qBinaryFind` swap had to keep its exact semantics:
+`lower_bound` stops at the insertion point, so `kw != end` alone would report a match for any
+extension sorting before the first entry. A standalone harness run over the real `ext1`–`ext3`
+tables confirms old and new agree for every entry, for upper-case variants, and for out-of-range
+probes.
+
+Observed but **not** changed (upstream OSDaB data, outside the Qt 5 port): `ext2` in `zip.cpp`
+lists `"jpg"` before `"jpeg"`, so the table is not strictly ordered and the binary search can never
+find `"jpeg"`. That is pre-existing — `qBinaryFind` missed it too, and the new code reproduces the
+old result exactly. Fixing it means reordering the table and changes the compression level chosen
+for `.jpeg` files, so it belongs in a separate change.

@@ -33,7 +33,7 @@ Settings::Settings(QWidget *parent) :
   int WindowWidth=0;
   foreach(QCheckBox *chk,checks)
   {
-   int width=fmWidth.width(chk->text())+ui->bMEmptyExit->height();
+   int width=fmWidth.horizontalAdvance(chk->text())+ui->bMEmptyExit->height();
    if(width>WindowWidth) WindowWidth=width;
   }
   checks.clear();
